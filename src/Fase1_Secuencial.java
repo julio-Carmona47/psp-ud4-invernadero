@@ -1,4 +1,28 @@
-package PACKAGE_NAME;
-
 public class Fase1_Secuencial {
+    public static void main(String[] args) {
+        System.out.println("--- INICIANDO FASE 1 (SECUENCIAL) ---");
+        long inicio = System.currentTimeMillis();
+
+        Temperatura temp = new Temperatura();
+        Humedad hum = new Humedad();
+        Luz luz = new Luz();
+        ProgramadorRiego riego = new ProgramadorRiego();
+
+
+        temp.run();
+        hum.run();
+        luz.run();
+        riego.run();
+
+        long fin = System.currentTimeMillis();
+        long tiempoTotal = (fin - inicio) / 1000; // en segundos
+
+        System.out.println("\n--- INFORMES ---");
+        System.out.println(temp.informe());
+        System.out.println(hum.informe());
+        System.out.println(luz.informe());
+        System.out.println(riego.informe());
+
+        System.out.println("\nTiempo total secuencial: " + tiempoTotal + " segundos.");
+    }
 }
