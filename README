@@ -1,1 +1,60 @@
-# Invernadero con hilos.
+# Invernadero con hilos
+
+## Que hace
+Este proyecto simula el sistema de control de un invernadero automatizado. Para ello, utiliza tres sensores (Temperatura, Humedad y Luz) y un programador de riego. El objetivo de la practica es demostrar la diferencia de rendimiento entre ejecutar las tareas de forma secuencial (un solo hilo) y de forma concurrente (varios hilos a la vez).
+
+## Como ejecutarlo
+El proyecto esta desarrollado en Java (JDK 21) y se puede abrir directamente en IntelliJ IDEA.
+Para probar cada fase, basta con ejecutar el metodo main de las siguientes clases:
+- Fase1_Secuencial: Ejecuta los sensores y el riego uno detras de otro.
+- Fase2_Concurrente: Ejecuta todo a la vez usando hilos.
+- Fase3_Experimentos: Pruebas sobre el uso de run(), start() y join().
+- Fase4_Vigilante: Un hilo demonio que monitoriza el estado de los demas.
+
+## Captura
+![Captura de la Fase 2](Captura_de_la_fase2.png)
+
+## Resultados
+| Fase | Tiempo total | Por que? |
+| :--- | :--- | :--- |
+| Fase 1 (Secuencial) | ~18 segundos | Los tiempos se suman porque main ejecuta una tarea detras de otra con run(). |
+| Fase 2 (Concurrente) | ~6 segundos | Los tiempos se solapan. El tiempo total es el del hilo mas lento. |
+
+## Analisis
+En la Fase 1 vemos que el tiempo total es la suma de los periodos (4s + 6s + 5s + 3s = 18s). Como usamos run() directamente, el hilo main se queda bloqueado esperando a que cada tarea termine antes de pasar a la siguiente.
+En la Fase 2, al usar start(), cada tarea se ejecuta en su propio hilo. Mientras el sensor de Humedad (el mas lento, 6s) esta esperando, los demas ya han terminado. Por eso el tiempo total es el maximo de los periodos (6s).
+
+## Por que compensa usar hilos en el invernadero?
+Compensa muchisimo. En un invernadero real, si el sistema se quedara esperando los 600 ms de la lectura de humedad, no estaria pendiente de si la temperatura sube de golpe o si la luz cambia. Al usar hilos, todos los sensores vigilan a la vez y el sistema puede reaccionar mucho mas rapido a cualquier alerta.
+
+## Experimentos A, B y C
+
+A (sin join): Al imprimir el informe justo despues de start(), sale todo a ceros o incompleto. Esto pasa porque main no espera y ejecuta el println antes de que el hilo haya hecho sus 5 lecturas. Al usar join(), main se bloquea hasta que el hilo termina, y el informe sale correcto.
+
+B (run en lugar de start): Al llamar a run(), el codigo se ejecuta en el hilo main, no en el hilo riego. Se ve en el log que el nombre del hilo es main. Ademas, el estado al final es NEW, porque el objeto Thread nunca llego a arrancar de verdad.
+
+C (doble start): Salta la excepcion IllegalThreadStateException. Un hilo que ya ha terminado (estado TERMINATED) no se puede volver a arrancar. Si quisieramos volver a usarlo, tendriamos que crear un objeto nuevo.
+
+## Estados observados
+| Estado | Cuando ocurre | Linea que lo provoca |
+| :--- | :--- | :--- |
+| NEW | Antes de llamar a start() | new Thread(...) |
+| RUNNABLE | Mientras ejecutan las lecturas | start() |
+| TIMED_WAITING | Mientras esperan entre lecturas | Thread.sleep(periodo) |
+| TERMINATED | Cuando terminan las lecturas | Fin de run() |
+
+No aparece el estado BLOCKED ni WAITING porque en esta practica no estamos usando bloqueos de sincronizacion (synchronized).
+
+Por que termina el programa si el vigilante sigue en su bucle? Porque lo hemos configurado como un hilo demonio (setDaemon(true)). La JVM no espera a que los hilos demonio terminen para cerrarse. Cuando todos los hilos normales (sensores y riego) mueren, el programa termina y el vigilante muere con el.
+
+## Thread frente a Runnable
+| Aspecto | Thread (extends Thread) | Runnable (implements Runnable) |
+| :--- | :--- | :--- |
+| Que representa | Es el propio hilo de ejecucion. | Es solo la tarea que se va a ejecutar. |
+| Como se arranca | objeto.start() | new Thread(objeto).start() |
+| Nombre del hilo | Se asigna en el constructor super("nombre"). | Se obtiene con Thread.currentThread().getName(). |
+| Herencia | Java no permite herencia multiple, asi que la clase no puede heredar de otra. | La clase queda libre para heredar de otra clase (como Sensor). |
+
+Por que los sensores SOLO pueden ser Runnable en tu diseno? Porque los sensores necesitan heredar de la clase abstracta Sensor para compartir la logica de las estadisticas, el metodo informe() y el bucle de lecturas. Si usamos extends Thread, no podriamos heredar de Sensor.
+
+Que forma elegirias para el riego y por que? Elegi extends Thread porque el riego no necesita heredar de ninguna otra clase. Ademas, al ser un hilo en si mismo, es mas directo asignarle el nombre riego en su constructor.
